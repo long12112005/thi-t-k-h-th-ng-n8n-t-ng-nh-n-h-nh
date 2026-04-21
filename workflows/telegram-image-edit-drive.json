@@ -1,0 +1,255 @@
+{
+  "name": "Telegram Image Edit to Google Drive",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "Telegram Trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tách ảnh lớn nhất và prompt\\nconst msg = $json.message || {};\\nconst photos = msg.photo || [];\\nif (!photos.length) { throw new Error('Không tìm thấy ảnh trong message'); }\\nconst largest = photos[photos.length - 1];\\nconst prompt = (msg.caption || msg.text || '').trim();\\nif (!prompt) { throw new Error('Không có yêu cầu chỉnh sửa trong caption/text'); }\\nconst safe = prompt\\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\\n  .replace(/[^a-zA-Z0-9\\s]/g, ' ')\\n  .trim()\\n  .replace(/\\s+/g, '_')\\n  .slice(0, 60);\\nconst now = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);\\nreturn [{ json: { file_id: largest.file_id, prompt, outputFileName: `${safe || 'image_edit'}_${now}.png`, chat_id: msg.chat.id } }];"
+      },
+      "id": "Prepare Input",
+      "name": "Prepare Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/botYOUR_BOT_TOKEN/getFile?file_id={{$json.file_id}}",
+        "options": {}
+      },
+      "id": "Telegram Get File",
+      "name": "Telegram Get File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/botYOUR_BOT_TOKEN/{{$json.result.file_path}}",
+        "responseFormat": "file",
+        "options": {}
+      },
+      "id": "Download Original Image",
+      "name": "Download Original Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENAI_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-1"
+            },
+            {
+              "name": "prompt",
+              "value": "={{$('Prepare Input').item.json.prompt}}"
+            },
+            {
+              "name": "image",
+              "parameterType": "formBinaryData",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Edit Image API",
+      "name": "Edit Image API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Chuyển base64 trả về từ API thành binary cho node Google Drive\\nconst item = $input.first();\\nconst data = item.json.data?.[0]?.b64_json;\\nif (!data) throw new Error('API không trả dữ liệu ảnh');\\nconst fileName = $('Prepare Input').item.json.outputFileName;\\nreturn [{\\n  json: { fileName },\\n  binary: { data: { data, mimeType: 'image/png', fileName } }\\n}];"
+      },
+      "id": "Prepare Binary Output",
+      "name": "Prepare Binary Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "binaryData": true,
+        "inputDataFieldName": "data",
+        "name": "={{$json.fileName}}",
+        "parents": [
+          "YOUR_GOOGLE_DRIVE_FOLDER_ID"
+        ]
+      },
+      "id": "Upload To Drive",
+      "name": "Upload To Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1760,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{$('Prepare Input').item.json.chat_id}}",
+        "text": "=Đã xử lý xong ảnh. File đã lưu lên Google Drive với tên: {{$('Prepare Input').item.json.outputFileName}}"
+      },
+      "id": "Notify Telegram",
+      "name": "Notify Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2010,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Input": {
+      "main": [
+        [
+          {
+            "node": "Telegram Get File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Get File": {
+      "main": [
+        [
+          {
+            "node": "Download Original Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Original Image": {
+      "main": [
+        [
+          {
+            "node": "Edit Image API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Image API": {
+      "main": [
+        [
+          {
+            "node": "Prepare Binary Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Binary Output": {
+      "main": [
+        [
+          {
+            "node": "Upload To Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload To Drive": {
+      "main": [
+        [
+          {
+            "node": "Notify Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+}
