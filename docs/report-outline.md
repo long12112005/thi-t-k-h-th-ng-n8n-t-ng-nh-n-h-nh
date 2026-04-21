@@ -18,4 +18,4 @@ Chèn file `../assets/so_do_khoi.png`
 - Telegram trả phản hồi cho người dùng
 
 ## 4. Link GitHub
-Dán link repo thật của nhóm/cá nhân tại đây.
+(https://github.com/long12112005/thi-t-k-h-th-ng-n8n-t-ng-nh-n-h-nh.git)
