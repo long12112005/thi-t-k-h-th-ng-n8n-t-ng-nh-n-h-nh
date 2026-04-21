@@ -9,7 +9,8 @@ Thiết kế hệ thống n8n tự động:
 - tên file lấy theo nội dung đề xuất/prompt đã rút gọn
 
 ## 2. Sơ đồ khối
-Chèn file `../assets/so_do_khoi.png`
+<img width="1600" height="900" alt="image" src="https://github.com/user-attachments/assets/b1f9e69c-e709-4dc8-ab83-066e001e1e30" />
+
 
 ## 3. Kết quả
 - Bot nhận ảnh thành công
