@@ -73,7 +73,7 @@ Ví dụ:
 
 ## 9. Link GitHub nộp bài
 Thay link dưới đây bằng repo thật của bạn:
-`https://github.com/<your-username>/n8n-telegram-image-edit`
+(https://github.com/long12112005/thi-t-k-h-th-ng-n8n-t-ng-nh-n-h-nh.git)
 
 ## 10. Lưu ý
 - Nếu dùng n8n self-host với Telegram Trigger, webhook phải truy cập được từ Internet.
